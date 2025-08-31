@@ -1,0 +1,86 @@
+spring:
+  application:
+    name: multi-story-language-app
+  
+  # Database Configuration (H2 for development)
+  datasource:
+    url: jdbc:mysql://localhost:3306/multi_app?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh
+    driverClassName: com.mysql.cj.jdbc.Driver
+    username: root
+    password: 1234567890
+  
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # SQL Init Configuration
+  sql:
+    init:
+      mode: never
+  
+  # Security
+  security:
+    jwt:
+      secret: mySecretKey
+      expiration: 86400000 # 24 hours
+
+# Server Configuration
+server:
+  port: 8080
+
+# CORS Configuration
+cors:
+  allowed-origins: http://localhost:4200,http://localhost:3000
+  allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+
+# Logging
+logging:
+  level:
+    com.multistory.languageapp: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: production
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/multistory_db
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+server:
+  port: ${PORT:8080}
+
+logging:
+  level:
+    com.multistory.languageapp: INFO
+    root: WARN

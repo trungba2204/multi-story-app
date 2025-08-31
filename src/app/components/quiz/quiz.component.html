@@ -1,0 +1,269 @@
+<!-- Quiz Container -->
+<div class="quiz-container">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading quiz...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="error-container">
+    <div class="error-message">
+      <i class="error-icon">⚠️</i>
+      <p>{{ error }}</p>
+      <button class="retry-btn" (click)="loadQuiz(story?.id || 0)">Try Again</button>
+    </div>
+  </div>
+
+  <!-- Quiz Content -->
+  <div *ngIf="!loading && !error && quiz" class="quiz-content">
+    
+    <!-- Quiz Header -->
+    <div class="quiz-header">
+      <div class="quiz-info">
+        <h1 class="quiz-title">{{ story?.title }} - Quiz</h1>
+        <div class="progress-info">
+          <span class="question-counter">
+            Question {{ quizState.currentQuestionIndex + 1 }} of {{ getTotalQuestions() }}
+          </span>
+          <div class="progress-bar">
+            <div 
+              class="progress-fill" 
+              [style.width.%]="getProgressPercentage()">
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="quiz-stats">
+        <div class="stat-item">
+          <span class="stat-label">Answered:</span>
+          <span class="stat-value">{{ getAnsweredCount() }}/{{ getTotalQuestions() }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Time:</span>
+          <span class="stat-value">{{ formatTime(getTotalTimeSpent()) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiz Body -->
+    <div class="quiz-body" *ngIf="!quizState.isSubmitted">
+      
+      <!-- Question Display -->
+      <div class="question-container" *ngIf="currentQuestion">
+        <div class="question-header">
+          <div class="question-type-badge" [ngClass]="'type-' + currentQuestion.type.toLowerCase()">
+            {{ currentQuestion.type | titlecase }}
+          </div>
+          <div class="question-points">{{ currentQuestion.points }} points</div>
+        </div>
+
+        <div class="question-content">
+          <h2 class="question-text">{{ currentQuestion.question }}</h2>
+
+          <!-- Multiple Choice Question -->
+          <div *ngIf="currentQuestion.type === QuestionType.MULTIPLE_CHOICE" class="answer-options">
+            <div 
+              *ngFor="let option of currentQuestion.options; let i = index"
+              class="option-item"
+              [class.selected]="currentAnswer === i"
+              (click)="onMultipleChoiceSelect(i)"
+            >
+              <div class="option-indicator">
+                <span class="option-letter">{{ getOptionLetter(i) }}</span>
+              </div>
+              <span class="option-text">{{ option }}</span>
+            </div>
+          </div>
+
+          <!-- Fill in the Blank Question -->
+          <div *ngIf="currentQuestion.type === QuestionType.FILL_IN_BLANK" class="fill-blank-container">
+            <input
+              type="text"
+              class="fill-blank-input"
+              placeholder="Type your answer here..."
+              [value]="currentAnswer || ''"
+              (input)="onFillInBlankInput($any($event.target).value)"
+            />
+          </div>
+
+          <!-- True/False Question -->
+          <div *ngIf="currentQuestion.type === QuestionType.TRUE_FALSE" class="true-false-container">
+            <div 
+              class="true-false-option"
+              [class.selected]="currentAnswer === true"
+              (click)="onTrueFalseSelect(true)"
+            >
+              <div class="option-indicator">✓</div>
+              <span>True</span>
+            </div>
+            <div 
+              class="true-false-option"
+              [class.selected]="currentAnswer === false"
+              (click)="onTrueFalseSelect(false)"
+            >
+              <div class="option-indicator">✗</div>
+              <span>False</span>
+            </div>
+          </div>
+
+          <!-- Listening Comprehension Question -->
+          <div *ngIf="currentQuestion.type === QuestionType.LISTENING_COMPREHENSION" class="listening-container">
+            <div class="audio-player">
+              <button class="play-btn">🔊 Play Audio</button>
+            </div>
+            <input
+              type="text"
+              class="listening-input"
+              placeholder="What did you hear?"
+              [value]="currentAnswer || ''"
+              (input)="onFillInBlankInput($any($event.target).value)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Controls -->
+      <div class="quiz-navigation">
+        <div class="nav-buttons">
+          <button 
+            class="nav-btn prev-btn"
+            [disabled]="isFirstQuestion()"
+            (click)="previousQuestion()"
+          >
+            ← Previous
+          </button>
+
+          <button 
+            *ngIf="!isLastQuestion()"
+            class="nav-btn next-btn"
+            (click)="nextQuestion()"
+          >
+            Next →
+          </button>
+
+          <button 
+            *ngIf="isLastQuestion()"
+            class="submit-btn"
+            [disabled]="loading"
+            (click)="submitQuiz()"
+          >
+            Submit Quiz
+          </button>
+        </div>
+
+        <!-- Question Navigator -->
+        <div class="question-navigator" *ngIf="showAllQuestions">
+          <div class="navigator-title">Jump to question:</div>
+          <div class="question-dots">
+            <button
+              *ngFor="let question of quiz.questions; let i = index"
+              class="question-dot"
+              [class.current]="i === quizState.currentQuestionIndex"
+              [class.answered]="isQuestionAnswered(question.id)"
+              (click)="goToQuestion(i)"
+            >
+              {{ i + 1 }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiz Results -->
+    <div class="quiz-results" *ngIf="quizState.isSubmitted && quizState.result">
+      <div class="results-header">
+        <div class="score-circle" [style.border-color]="getScoreColor()">
+          <div class="score-percentage" [style.color]="getScoreColor()">
+            {{ getScorePercentage() }}%
+          </div>
+          <div class="score-label">Score</div>
+        </div>
+        
+        <div class="results-info">
+          <h2 class="results-title">
+            {{ isPassing() ? 'Congratulations!' : 'Keep Learning!' }}
+          </h2>
+          <p class="results-subtitle">
+            You got {{ quizState.result.correctAnswers }} out of {{ quizState.result.totalQuestions }} questions correct.
+          </p>
+        </div>
+      </div>
+
+      <div class="results-stats">
+        <div class="stat-card">
+          <div class="stat-number">{{ quizState.result.correctAnswers }}</div>
+          <div class="stat-label">Correct Answers</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ formatTime(getTotalTimeSpent()) }}</div>
+          <div class="stat-label">Time Spent</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">{{ quizState.result.totalQuestions }}</div>
+          <div class="stat-label">Total Questions</div>
+        </div>
+      </div>
+
+      <!-- Feedback Section -->
+      <div class="feedback-section" *ngIf="quizState.result.feedback.length > 0">
+        <h3 class="feedback-title">Feedback</h3>
+        <div class="feedback-list">
+          <div 
+            *ngFor="let feedback of quizState.result.feedback"
+            class="feedback-item"
+          >
+            {{ feedback }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="recommendations-section" *ngIf="quizState.result.recommendations.length > 0">
+        <h3 class="recommendations-title">Recommendations</h3>
+        <div class="recommendations-list">
+          <div 
+            *ngFor="let recommendation of quizState.result.recommendations"
+            class="recommendation-item"
+          >
+            💡 {{ recommendation }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="results-actions">
+        <button 
+          *ngIf="isPassing()"
+          class="action-btn primary"
+          (click)="continueToNextChapter()"
+        >
+          Continue to Next Chapter
+        </button>
+        
+        <button 
+          *ngIf="!isPassing()"
+          class="action-btn secondary"
+          (click)="reviewStory()"
+        >
+          Review Story
+        </button>
+
+        <button 
+          class="action-btn secondary"
+          (click)="retakeQuiz()"
+        >
+          Retake Quiz
+        </button>
+
+        <button 
+          class="action-btn outline"
+          (click)="goToStoryList()"
+        >
+          Back to Stories
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,207 @@
+<!-- Story List Container -->
+<div class="story-list-container">
+  <!-- Header Section -->
+  <div class="header-section">
+    <h1 class="page-title">Discover Stories</h1>
+    <p class="page-subtitle">Choose a story to start your language learning journey</p>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <div class="filter-row">
+      <!-- Search Input -->
+      <div class="search-container">
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search stories..."
+          [(ngModel)]="searchKeyword"
+          (ngModelChange)="onSearchKeywordChange($event)"
+        />
+        <i class="search-icon">🔍</i>
+      </div>
+
+      <!-- Language Filter -->
+      <div class="filter-group">
+        <label class="filter-label">Language:</label>
+        <select
+          class="filter-select"
+          [(ngModel)]="selectedLanguage"
+          (ngModelChange)="onLanguageChange()"
+        >
+          <option value="">All Languages</option>
+          <option *ngFor="let lang of languages" [value]="lang">
+            {{ lang.toUpperCase() }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Difficulty Filter -->
+      <div class="filter-group">
+        <label class="filter-label">Difficulty:</label>
+        <select
+          class="filter-select"
+          [(ngModel)]="selectedDifficulty"
+          (ngModelChange)="onDifficultyChange()"
+        >
+          <option value="">All Levels</option>
+          <option *ngFor="let difficulty of difficulties" [value]="difficulty">
+            {{ storyService.getDifficultyLabel(difficulty) }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Clear Filters Button -->
+      <button class="clear-filters-btn" (click)="clearFilters()">
+        Clear Filters
+      </button>
+    </div>
+
+    <!-- Tags Filter -->
+    <div class="tags-row">
+      <span class="tags-label">Tags:</span>
+      <div class="tags-container">
+        <button
+          *ngFor="let tag of availableTags"
+          class="tag-button"
+          [class.selected]="isTagSelected(tag)"
+          (click)="onTagToggle(tag)"
+        >
+          {{ tag }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading && stories.length === 0" class="loading-container">
+    <div class="loading-spinner"></div>
+    <p>Loading stories...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error" class="error-container">
+    <div class="error-message">
+      <i class="error-icon">⚠️</i>
+      <p>{{ error }}</p>
+      <button class="retry-btn" (click)="retry()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- Stories Grid -->
+  <div *ngIf="!loading || stories.length > 0" class="stories-grid">
+    <div
+      *ngFor="let story of filteredStories"
+      class="story-card"
+      (click)="onStoryClick(story)"
+    >
+      <!-- Story Image/Thumbnail -->
+      <div class="story-image">
+        <div class="difficulty-badge" [style.background-color]="getDifficultyColor(story.difficulty)">
+          {{ storyService.getDifficultyLabel(story.difficulty) }}
+        </div>
+        <div *ngIf="isStoryCompleted(story)" class="completed-badge">
+          ✓ Completed
+        </div>
+      </div>
+
+      <!-- Story Content -->
+      <div class="story-content">
+        <h3 class="story-title">{{ story.title }}</h3>
+        
+        <p class="story-description">
+          {{ story.content | slice:0:100 }}{{ story.content.length > 100 ? '...' : '' }}
+        </p>
+
+        <!-- Story Metadata -->
+        <div class="story-metadata">
+          <div class="metadata-item">
+            <i class="icon">🌐</i>
+            <span>{{ story.language.toUpperCase() }}</span>
+          </div>
+          
+          <div class="metadata-item" *ngIf="story.estimatedDuration">
+            <i class="icon">⏱️</i>
+            <span>{{ formatDuration(story.estimatedDuration) }}</span>
+          </div>
+          
+          <div class="metadata-item" *ngIf="story.vocabularyCount">
+            <i class="icon">📚</i>
+            <span>{{ story.vocabularyCount }} words</span>
+          </div>
+        </div>
+
+        <!-- Story Tags -->
+        <div class="story-tags" *ngIf="story.tags.length > 0">
+          <span
+            *ngFor="let tag of story.tags"
+            class="story-tag"
+          >
+            {{ tag }}
+          </span>
+        </div>
+
+        <!-- Progress Bar (if story is started) -->
+        <div *ngIf="isStoryStarted(story)" class="progress-container">
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              [style.width.%]="getStoryProgress(story)"
+            ></div>
+          </div>
+          <span class="progress-text">{{ getStoryProgress(story) }}% complete</span>
+        </div>
+      </div>
+
+      <!-- Story Actions -->
+      <div class="story-actions">
+        <button
+          *ngIf="!isStoryStarted(story)"
+          class="start-btn"
+          (click)="onStartStory(story, $event)"
+        >
+          Start Reading
+        </button>
+        
+        <button
+          *ngIf="isStoryStarted(story) && !isStoryCompleted(story)"
+          class="continue-btn"
+          (click)="onStartStory(story, $event)"
+        >
+          Continue
+        </button>
+        
+        <button
+          *ngIf="isStoryCompleted(story)"
+          class="review-btn"
+          (click)="onStartStory(story, $event)"
+        >
+          Review
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load More Button -->
+  <div *ngIf="stories.length > 0 && !loading" class="load-more-container">
+    <button class="load-more-btn" (click)="loadMore()">
+      Load More Stories
+    </button>
+  </div>
+
+  <!-- Loading More Indicator -->
+  <div *ngIf="loading && stories.length > 0" class="loading-more">
+    <div class="loading-spinner small"></div>
+    <span>Loading more stories...</span>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && stories.length === 0 && !error" class="empty-state">
+    <div class="empty-icon">📚</div>
+    <h3>No stories found</h3>
+    <p>Try adjusting your filters or search terms</p>
+    <button class="clear-filters-btn" (click)="clearFilters()">
+      Clear All Filters
+    </button>
+  </div>
+</div>
