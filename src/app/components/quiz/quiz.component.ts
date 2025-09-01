@@ -119,6 +119,13 @@ interface SimpleQuiz {
         </div>
       </div>
 
+      <!-- Debug Info -->
+      <div style="position: fixed; bottom: 10px; right: 10px; background: orange; color: white; padding: 10px; font-size: 12px; z-index: 9999;">
+        Result: {{ !!result }}<br>
+        Loading: {{ loading }}<br>
+        Show Results: {{ result && !loading }}
+      </div>
+
       <!-- Results -->
       <div *ngIf="result && !loading" class="quiz-results">
         <h2>🎉 Quiz Complete!</h2>
@@ -344,6 +351,7 @@ export class QuizComponent implements OnInit {
   ngOnInit(): void {
     this.route.params.subscribe(params => {
       const storyId = +params['id'];
+      console.log('Quiz component - loading for story ID:', storyId);
       if (storyId) {
         this.loadQuiz(storyId);
       }
@@ -411,6 +419,7 @@ export class QuizComponent implements OnInit {
   }
 
   submitQuiz(): void {
+    console.log('=== SUBMITTING QUIZ ===');
     this.saveCurrentAnswer();
     this.loading = true;
 
@@ -421,15 +430,21 @@ export class QuizComponent implements OnInit {
       timeSpent: 5 // Mock time
     }));
 
+    console.log('Answers to submit:', answersForSubmit);
+
     this.storyService.submitQuizAnswers(1, this.quiz!.id, answersForSubmit).subscribe({
       next: (result) => {
+        console.log('=== QUIZ SUBMIT SUCCESS ===');
+        console.log('Result received:', result);
         this.result = result;
         this.loading = false;
+        console.log('Result set, loading = false');
+        console.log('Component result state:', this.result);
       },
       error: (err) => {
+        console.error('=== QUIZ SUBMIT ERROR ===', err);
         this.error = 'Failed to submit quiz';
         this.loading = false;
-        console.error('Submit error:', err);
       }
     });
   }

@@ -13,7 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "stories")
+@Table(name = "stories", indexes = {
+    @Index(name = "idx_story_language", columnList = "language"),
+    @Index(name = "idx_story_difficulty", columnList = "difficulty"),
+    @Index(name = "idx_story_active", columnList = "is_active"),
+    @Index(name = "idx_story_created", columnList = "created_at"),
+    @Index(name = "idx_story_lang_diff", columnList = "language, difficulty")
+})
 @EntityListeners(AuditingEntityListener.class)
 public class Story {
     

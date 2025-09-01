@@ -6,8 +6,20 @@ import { QuizComponent } from './components/quiz/quiz.component';
 export const routes: Routes = [
   { path: '', redirectTo: '/stories', pathMatch: 'full' },
   { path: 'stories', component: StoryListComponent },
-  { path: 'story/:id', component: StoryReaderComponent },
-  { path: 'story/:id/read', component: StoryReaderComponent },
-  { path: 'story/:id/quiz', component: QuizComponent },
+  { 
+    path: 'story/:id', 
+    component: StoryReaderComponent,
+    runGuardsAndResolvers: 'paramsOrQueryParamsChange'
+  },
+  { 
+    path: 'story/:id/read', 
+    component: StoryReaderComponent,
+    runGuardsAndResolvers: 'paramsOrQueryParamsChange'
+  },
+  { 
+    path: 'story/:id/quiz', 
+    component: QuizComponent,
+    runGuardsAndResolvers: 'paramsOrQueryParamsChange'
+  },
   { path: '**', redirectTo: '/stories' }
 ];

@@ -1,42 +1,59 @@
-<!-- Simplified Story Reader -->
-<div class="story-reader-container">
+<div class="simple-reader">
   
-  <!-- Loading State -->
-  <div *ngIf="loading" class="loading-container">
-    <h2>🔄 Loading story...</h2>
-  </div>
+  <!-- Loading Overlay -->
+  @if (loading) {
+    <div class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h2>📖 Loading story...</h2>
+        <p class="loading-subtitle">{{ storyId ? 'Story #' + storyId : 'Please wait...' }}</p>
+      </div>
+    </div>
+  }
 
-  <!-- Error State -->
-  <div *ngIf="error && !loading" class="error-container">
-    <h2>❌ {{ error }}</h2>
-    <button (click)="loadStory(story?.id || 0, currentChapterIndex + 1)">Try Again</button>
-  </div>
+  <!-- Error -->
+  @if (error) {
+    <div class="center">
+      <h2>❌ {{ error }}</h2>
+      <button (click)="retry()">Try Again</button>
+    </div>
+  }
 
-  <!-- Story Content (Simplified) -->
-  <div *ngIf="!loading && !error && story && currentChapter" class="story-content">
+  <!-- Story Content -->
+  @if (story && !loading && !error) {
+    <div class="story-content">
     
-    <!-- Simplified Header -->
+    <!-- Header -->
     <div class="story-header">
       <h1>📖 {{ story.title }}</h1>
-      <p><strong>Language:</strong> {{ story.language }} | <strong>Level:</strong> {{ story.difficulty }}</p>
-      <p><strong>Duration:</strong> {{ story.estimatedDuration }} seconds | <strong>Words:</strong> {{ story.vocabularyCount }}</p>
-    </div>
-
-    <!-- Story Text Content -->
-    <div class="story-text" [style.font-size.px]="fontSize">
-      <p>{{ currentChapter.content }}</p>
-    </div>
-
-    <!-- Simple Controls -->
-    <div class="simple-controls">
-      <button (click)="startQuiz()" class="quiz-btn">📝 Take Quiz</button>
-      <button (click)="router.navigate(['/stories'])" class="back-btn">🔙 Back to Stories</button>
-      <div class="font-controls">
-        <button (click)="decreaseFontSize()">A-</button>
-        <span>Font: {{ fontSize }}px</span>
-        <button (click)="increaseFontSize()">A+</button>
+      <div class="story-meta">
+        <span class="language">{{ story.language }}</span>
+        <span class="difficulty">{{ story.difficulty }}</span>
+        <span class="duration">{{ story.estimatedDuration }}s</span>
+        <span class="words">{{ story.vocabularyCount }} words</span>
       </div>
     </div>
 
-  </div>
+    <!-- Story Text -->
+    <div class="story-text">
+      <p>{{ story.content }}</p>
+    </div>
+
+    <!-- Reading Controls -->
+    <div class="reading-controls">
+      <div class="font-controls">
+        <button (click)="decreaseFontSize()" class="font-btn">A-</button>
+        <span>Font Size</span>
+        <button (click)="increaseFontSize()" class="font-btn">A+</button>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="story-actions">
+      <a routerLink="/stories" class="btn btn-secondary">🔙 Back to Stories</a>
+      <a [routerLink]="['/story', story.id, 'quiz']" class="btn btn-primary">📝 Take Quiz</a>
+    </div>
+    </div>
+  }
+  
 </div>

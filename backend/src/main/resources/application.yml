@@ -14,10 +14,19 @@ spring:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
+        # Performance optimizations
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+        # Disable lazy loading exceptions in production
+        enable_lazy_load_no_trans: false
   
   # SQL Init Configuration
   sql:
@@ -44,11 +53,13 @@ cors:
 # Logging
 logging:
   level:
-    com.multistory.languageapp: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.multistory.languageapp: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type: WARN
+    org.springframework.security: WARN
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{HH:mm:ss} - %msg%n"
 
 # Management endpoints
 management:

@@ -22,11 +22,19 @@ public class StoryService {
     
     public Page<StoryDTO> getStoriesWithFilters(String language, String difficulty, String keyword, Pageable pageable) {
         Page<Story> stories = storyRepository.findStoriesWithFilters(language, difficulty, keyword, pageable);
+        
+        // Batch load tags to avoid N+1 queries
+        List<Story> storyList = stories.getContent();
+        if (!storyList.isEmpty()) {
+            // Force initialize tags collection for all stories
+            storyList.forEach(story -> story.getTags().size());
+        }
+        
         return stories.map(this::convertToDTO);
     }
     
     public StoryDTO getStoryById(Long id) {
-        Story story = storyRepository.findById(id)
+        Story story = storyRepository.findByIdWithTags(id)
             .orElseThrow(() -> new StoryNotFoundException("Story not found with id: " + id));
         return convertToDTO(story);
     }
@@ -38,7 +46,7 @@ public class StoryService {
     }
     
     public StoryDTO updateStory(Long id, StoryUpdateRequest request) {
-        Story story = storyRepository.findById(id)
+        Story story = storyRepository.findByIdWithTags(id)
             .orElseThrow(() -> new StoryNotFoundException("Story not found with id: " + id));
         
         updateEntityFromRequest(story, request);
@@ -47,7 +55,7 @@ public class StoryService {
     }
     
     public void deleteStory(Long id) {
-        Story story = storyRepository.findById(id)
+        Story story = storyRepository.findByIdWithTags(id)
             .orElseThrow(() -> new StoryNotFoundException("Story not found with id: " + id));
         story.setIsActive(false);
         storyRepository.save(story);

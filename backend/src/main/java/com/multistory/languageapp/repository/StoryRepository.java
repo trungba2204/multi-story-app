@@ -3,6 +3,7 @@ package com.multistory.languageapp.repository;
 import com.multistory.languageapp.entity.Story;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -40,7 +41,7 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
            "OR LOWER(s.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND s.isActive = true")
     List<Story> searchByTitleOrContent(@Param("keyword") String keyword);
     
-    // Paginated search with filters
+    // Paginated search with filters - optimized query without EntityGraph
     @Query("SELECT s FROM Story s WHERE " +
            "(:language IS NULL OR s.language = :language) AND " +
            "(:difficulty IS NULL OR s.difficulty = :difficulty) AND " +
@@ -52,6 +53,10 @@ public interface StoryRepository extends JpaRepository<Story, Long> {
         @Param("keyword") String keyword,
         Pageable pageable
     );
+    
+    // Find story by ID with tags (using JOIN FETCH for better performance)
+    @Query("SELECT s FROM Story s LEFT JOIN FETCH s.tags WHERE s.id = :id")
+    Optional<Story> findByIdWithTags(@Param("id") Long id);
     
     // Find story with chapters
     @Query("SELECT s FROM Story s LEFT JOIN FETCH s.chapters c WHERE s.id = :id AND s.isActive = true ORDER BY c.chapterNumber")

@@ -13,7 +13,7 @@ import { StoryService } from '../../services/story.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './story-list.component.html',
-  styleUrls: ['./story-list.component.scss']
+  styleUrls: ['./story-list.component.scss'],
 })
 export class StoryListComponent implements OnInit, OnDestroy {
   stories: Story[] = [];
@@ -24,39 +24,50 @@ export class StoryListComponent implements OnInit, OnDestroy {
   // Filter properties
   filter: StoryFilter = {
     page: 0,
-    size: 20
+    size: 20,
   };
-  
+
   searchKeyword = '';
   selectedLanguage = '';
   selectedDifficulty: DifficultyLevel | '' = '';
   selectedTags: string[] = [];
-  
+
   // Available options
   languages = ['en', 'ja', 'ko', 'es', 'fr', 'de'];
   difficulties = Object.values(DifficultyLevel);
-  availableTags = ['romance', 'mystery', 'adventure', 'daily_life', 'business', 'travel'];
-  
+  availableTags = [
+    'romance',
+    'mystery',
+    'adventure',
+    'daily_life',
+    'business',
+    'travel',
+  ];
+
   private destroy$ = new Subject<void>();
   private searchSubject = new Subject<string>();
 
-  constructor(
-    public storyService: StoryService,
-    private router: Router
-  ) {
-    // Setup search debouncing
-    this.searchSubject.pipe(
-      debounceTime(300),
-      distinctUntilChanged(),
-      takeUntil(this.destroy$)
-    ).subscribe(keyword => {
-      this.filter.keyword = keyword;
-      this.loadStories();
-    });
+  constructor(public storyService: StoryService, private router: Router) {
+    // Setup search debouncing - reduced time for faster response
+    this.searchSubject
+      .pipe(
+        debounceTime(150), // Reduced from 300ms to 150ms
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((keyword) => {
+        this.filter.keyword = keyword;
+        this.loadStories();
+      });
   }
 
   ngOnInit(): void {
-    // Load stories immediately without delay
+    console.log('StoryListComponent ngOnInit - checking cache first');
+
+    // Force loading state immediately
+    this.loading = true;
+
+    // Load stories immediately - service will check cache first
     this.loadStories();
   }
 
@@ -66,20 +77,31 @@ export class StoryListComponent implements OnInit, OnDestroy {
   }
 
   loadStories(): void {
-    this.loading = true;
+    // Only show loading if we don't have stories yet OR if loading is already true (from refresh)
+    if (this.stories.length === 0 || this.loading) {
+      this.loading = true;
+    }
     this.error = null;
+    this.loading = true;
 
+    console.log('LoadStories called - current loading state:', this.loading);
     this.storyService.getStories(this.filter).subscribe({
       next: (stories) => {
+        console.log(
+          'LoadStories success - received:',
+          stories.length,
+          'stories'
+        );
         this.stories = stories;
         this.filteredStories = stories;
         this.loading = false;
+        console.log('Stories loaded and loading set to false');
       },
       error: (error) => {
         this.error = 'Failed to load stories. Please try again.';
         this.loading = false;
         console.error('Error loading stories:', error);
-      }
+      },
     });
   }
 
@@ -105,7 +127,8 @@ export class StoryListComponent implements OnInit, OnDestroy {
     } else {
       this.selectedTags.push(tag);
     }
-    this.filter.tags = this.selectedTags.length > 0 ? this.selectedTags : undefined;
+    this.filter.tags =
+      this.selectedTags.length > 0 ? this.selectedTags : undefined;
     this.loadStories();
   }
 
@@ -123,8 +146,33 @@ export class StoryListComponent implements OnInit, OnDestroy {
   }
 
   onStoryClick(story: Story): void {
+    console.log('Navigating to story:', story.id, story.title);
+
+    // Preload story data before navigation for faster loading
+    this.storyService.getStoryById(story.id).subscribe({
+      next: (storyData) => {
+        console.log('Story preloaded:', storyData.title);
+      },
+      error: (err) => {
+        console.log('Preload failed, will load normally:', err);
+      },
+    });
+
+    // Set current story and navigate
     this.storyService.setCurrentStory(story);
-    this.router.navigate(['/story', story.id]);
+
+    this.router
+      .navigate(['/story', story.id])
+      .then((success) => {
+        if (success) {
+          console.log('Navigation successful to story:', story.id);
+        } else {
+          console.error('Navigation failed for story:', story.id);
+        }
+      })
+      .catch((error) => {
+        console.error('Navigation error:', error);
+      });
   }
 
   onStartStory(story: Story, event: Event): void {
@@ -166,7 +214,7 @@ export class StoryListComponent implements OnInit, OnDestroy {
     if (!this.loading) {
       this.filter.page = (this.filter.page || 0) + 1;
       this.loading = true;
-      
+
       this.storyService.getStories(this.filter).subscribe({
         next: (newStories) => {
           this.stories = [...this.stories, ...newStories];
@@ -177,7 +225,7 @@ export class StoryListComponent implements OnInit, OnDestroy {
           this.error = 'Failed to load more stories.';
           this.loading = false;
           console.error('Error loading more stories:', error);
-        }
+        },
       });
     }
   }
@@ -185,5 +233,38 @@ export class StoryListComponent implements OnInit, OnDestroy {
   retry(): void {
     this.error = null;
     this.loadStories();
+  }
+
+  refreshStories(): void {
+    console.log('=== REFRESH BUTTON CLICKED ===');
+
+    // Immediately show loading state
+    this.loading = true;
+    this.error = null;
+
+    console.log('Loading state set to true, clearing cache...');
+
+    // Force clear cache
+    this.storyService.clearCache();
+
+    // Get fresh stories
+    this.storyService.getStories(this.filter).subscribe({
+      next: (stories) => {
+        console.log('=== REFRESH SUCCESS ===');
+        console.log('Fresh stories received:', stories.length);
+
+        // Update stories and stop loading
+        this.stories = stories;
+        this.filteredStories = stories;
+        this.loading = false;
+
+        console.log('Refresh completed successfully');
+      },
+      error: (error) => {
+        console.error('=== REFRESH ERROR ===', error);
+        this.error = 'Failed to refresh stories. Please try again.';
+        this.loading = false;
+      },
+    });
   }
 }

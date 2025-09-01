@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { Observable, BehaviorSubject, of } from 'rxjs';
+import { map, catchError, tap } from 'rxjs/operators';
 import { Story, StoryFilter, UserProgress, Quiz, QuizResult } from '../models/story.model';
 import { environment } from '../../environments/environment';
 
@@ -12,11 +12,26 @@ export class StoryService {
   private readonly apiUrl = `${environment.apiUrl}/api`;
   private currentStorySubject = new BehaviorSubject<Story | null>(null);
   public currentStory$ = this.currentStorySubject.asObservable();
+  
+  // Cache for stories and individual story
+  private storiesCache = new Map<string, { data: Story[], timestamp: number }>();
+  private storyCache = new Map<number, { data: Story, timestamp: number }>();
+  private readonly CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for better performance
 
   constructor(private http: HttpClient) {}
 
   // Story CRUD Operations
   getStories(filter?: StoryFilter): Observable<Story[]> {
+    // Create cache key from filter
+    const cacheKey = this.createCacheKey(filter);
+    
+    // Check cache first
+    const cached = this.storiesCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+      console.log('Returning cached stories for key:', cacheKey);
+      return of(cached.data);
+    }
+
     let params = new HttpParams();
     
     if (filter) {
@@ -27,16 +42,41 @@ export class StoryService {
       if (filter.size) params = params.set('size', filter.size.toString());
     }
 
+    console.log('Fetching fresh stories for key:', cacheKey);
     return this.http.get<any>(`${this.apiUrl}/stories`, { params })
       .pipe(
         map(response => response.content || response),
+        tap(stories => {
+          // Cache the results
+          this.storiesCache.set(cacheKey, {
+            data: stories,
+            timestamp: Date.now()
+          });
+        }),
         catchError(this.handleError)
       );
   }
 
   getStoryById(id: number): Observable<Story> {
+    // Check cache first
+    const cached = this.storyCache.get(id);
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
+      console.log('Returning cached story for ID:', id);
+      return of(cached.data);
+    }
+
+    console.log('Fetching fresh story for ID:', id);
     return this.http.get<Story>(`${this.apiUrl}/stories/${id}`)
-      .pipe(catchError(this.handleError));
+      .pipe(
+        tap(story => {
+          // Cache the story
+          this.storyCache.set(id, {
+            data: story,
+            timestamp: Date.now()
+          });
+        }),
+        catchError(this.handleError)
+      );
   }
 
   getStoriesByLanguage(language: string): Observable<Story[]> {
@@ -178,5 +218,35 @@ export class StoryService {
     }
     
     return Math.min(progress.currentChapter + 1, story.chapters.length);
+  }
+
+  // Cache helper methods
+  private createCacheKey(filter?: StoryFilter): string {
+    if (!filter) return 'default';
+    
+    const keyParts = [
+      filter.language || 'all',
+      filter.difficulty || 'all',
+      filter.keyword || '',
+      filter.page?.toString() || '0',
+      filter.size?.toString() || '20'
+    ];
+    
+    return keyParts.join('|');
+  }
+
+  clearCache(): void {
+    console.log('Clearing all caches');
+    this.storiesCache.clear();
+    this.storyCache.clear();
+  }
+
+  refreshStories(filter?: StoryFilter): Observable<Story[]> {
+    // Clear specific cache entry
+    const cacheKey = this.createCacheKey(filter);
+    console.log('Refreshing stories - clearing cache for key:', cacheKey);
+    this.storiesCache.delete(cacheKey);
+    console.log('Cache cleared, fetching fresh data...');
+    return this.getStories(filter);
   }
 }

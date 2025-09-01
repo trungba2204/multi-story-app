@@ -2,8 +2,16 @@
 <div class="story-list-container">
   <!-- Header Section -->
   <div class="header-section">
-    <h1 class="page-title">Discover Stories</h1>
-    <p class="page-subtitle">Choose a story to start your language learning journey</p>
+    <div class="header-content">
+      <div class="header-text">
+        <h1 class="page-title">Discover Stories</h1>
+        <p class="page-subtitle">Choose a story to start your language learning journey</p>
+      </div>
+      <button class="refresh-header-btn" (click)="refreshStories()" [disabled]="loading">
+        <span class="refresh-icon" [class.spinning]="loading">🔄</span>
+        Refresh
+      </button>
+    </div>
   </div>
 
   <!-- Filters Section -->
@@ -30,9 +38,11 @@
           (ngModelChange)="onLanguageChange()"
         >
           <option value="">All Languages</option>
-          <option *ngFor="let lang of languages" [value]="lang">
-            {{ lang.toUpperCase() }}
-          </option>
+          @for (lang of languages; track lang) {
+            <option [value]="lang">
+              {{ lang.toUpperCase() }}
+            </option>
+          }
         </select>
       </div>
 
@@ -45,9 +55,11 @@
           (ngModelChange)="onDifficultyChange()"
         >
           <option value="">All Levels</option>
-          <option *ngFor="let difficulty of difficulties" [value]="difficulty">
-            {{ storyService.getDifficultyLabel(difficulty) }}
-          </option>
+          @for (difficulty of difficulties; track difficulty) {
+            <option [value]="difficulty">
+              {{ storyService.getDifficultyLabel(difficulty) }}
+            </option>
+          }
         </select>
       </div>
 
@@ -61,48 +73,59 @@
     <div class="tags-row">
       <span class="tags-label">Tags:</span>
       <div class="tags-container">
-        <button
-          *ngFor="let tag of availableTags"
-          class="tag-button"
-          [class.selected]="isTagSelected(tag)"
-          (click)="onTagToggle(tag)"
-        >
-          {{ tag }}
-        </button>
+        @for (tag of availableTags; track tag) {
+          <button
+            class="tag-button"
+            [class.selected]="isTagSelected(tag)"
+            (click)="onTagToggle(tag)"
+          >
+            {{ tag }}
+          </button>
+        }
       </div>
     </div>
   </div>
 
-  <!-- Loading State -->
-  <div *ngIf="loading && stories.length === 0" class="loading-container">
-    <div class="loading-spinner"></div>
-    <p>Loading stories...</p>
-  </div>
+  <!-- Loading Overlay -->
+  @if (loading) {
+    <div class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h2>📚 {{ stories.length === 0 ? 'Loading stories...' : 'Refreshing stories...' }}</h2>
+        <p class="loading-subtitle">Please wait...</p>
+      </div>
+    </div>
+  }
 
   <!-- Error State -->
-  <div *ngIf="error" class="error-container">
-    <div class="error-message">
-      <i class="error-icon">⚠️</i>
-      <p>{{ error }}</p>
-      <button class="retry-btn" (click)="retry()">Try Again</button>
+  @if (error) {
+    <div class="error-container">
+      <div class="error-message">
+        <i class="error-icon">⚠️</i>
+        <p>{{ error }}</p>
+        <div class="error-actions">
+          <button class="retry-btn" (click)="retry()">Try Again</button>
+          <button class="refresh-btn" (click)="refreshStories()">🔄 Refresh</button>
+        </div>
+      </div>
     </div>
-  </div>
+  }
 
   <!-- Stories Grid -->
-  <div *ngIf="!loading || stories.length > 0" class="stories-grid">
-    <div
-      *ngFor="let story of filteredStories"
-      class="story-card"
-      (click)="onStoryClick(story)"
-    >
+  @if (!loading || stories.length > 0) {
+    <div class="stories-grid">
+      @for (story of filteredStories; track story.id) {
+        <div class="story-card" (click)="onStoryClick(story)">
       <!-- Story Image/Thumbnail -->
       <div class="story-image">
         <div class="difficulty-badge" [style.background-color]="getDifficultyColor(story.difficulty)">
           {{ storyService.getDifficultyLabel(story.difficulty) }}
         </div>
-        <div *ngIf="isStoryCompleted(story)" class="completed-badge">
-          ✓ Completed
-        </div>
+        @if (isStoryCompleted(story)) {
+          <div class="completed-badge">
+            ✓ Completed
+          </div>
+        }
       </div>
 
       <!-- Story Content -->
@@ -120,88 +143,97 @@
             <span>{{ story.language.toUpperCase() }}</span>
           </div>
           
-          <div class="metadata-item" *ngIf="story.estimatedDuration">
-            <i class="icon">⏱️</i>
-            <span>{{ formatDuration(story.estimatedDuration) }}</span>
-          </div>
+          @if (story.estimatedDuration) {
+            <div class="metadata-item">
+              <i class="icon">⏱️</i>
+              <span>{{ formatDuration(story.estimatedDuration) }}</span>
+            </div>
+          }
           
-          <div class="metadata-item" *ngIf="story.vocabularyCount">
-            <i class="icon">📚</i>
-            <span>{{ story.vocabularyCount }} words</span>
-          </div>
+          @if (story.vocabularyCount) {
+            <div class="metadata-item">
+              <i class="icon">📚</i>
+              <span>{{ story.vocabularyCount }} words</span>
+            </div>
+          }
         </div>
 
         <!-- Story Tags -->
-        <div class="story-tags" *ngIf="story.tags.length > 0">
-          <span
-            *ngFor="let tag of story.tags"
-            class="story-tag"
-          >
-            {{ tag }}
-          </span>
-        </div>
+        @if (story.tags.length > 0) {
+          <div class="story-tags">
+            @for (tag of story.tags; track tag) {
+              <span class="story-tag">
+                {{ tag }}
+              </span>
+            }
+          </div>
+        }
 
         <!-- Progress Bar (if story is started) -->
-        <div *ngIf="isStoryStarted(story)" class="progress-container">
+        @if (isStoryStarted(story)) {
+          <div class="progress-container">
           <div class="progress-bar">
             <div
               class="progress-fill"
               [style.width.%]="getStoryProgress(story)"
             ></div>
+            </div>
+            <span class="progress-text">{{ getStoryProgress(story) }}% complete</span>
           </div>
-          <span class="progress-text">{{ getStoryProgress(story) }}% complete</span>
-        </div>
+        }
       </div>
 
-      <!-- Story Actions -->
-      <div class="story-actions">
-        <button
-          *ngIf="!isStoryStarted(story)"
-          class="start-btn"
-          (click)="onStartStory(story, $event)"
-        >
-          Start Reading
-        </button>
-        
-        <button
-          *ngIf="isStoryStarted(story) && !isStoryCompleted(story)"
-          class="continue-btn"
-          (click)="onStartStory(story, $event)"
-        >
-          Continue
-        </button>
-        
-        <button
-          *ngIf="isStoryCompleted(story)"
-          class="review-btn"
-          (click)="onStartStory(story, $event)"
-        >
-          Review
-        </button>
-      </div>
+        <!-- Story Actions -->
+        <div class="story-actions">
+          @if (!isStoryStarted(story)) {
+            <button class="start-btn" (click)="onStartStory(story, $event)">
+              Start Reading
+            </button>
+          }
+          
+          @if (isStoryStarted(story) && !isStoryCompleted(story)) {
+            <button class="continue-btn" (click)="onStartStory(story, $event)">
+              Continue
+            </button>
+          }
+          
+          @if (isStoryCompleted(story)) {
+            <button class="review-btn" (click)="onStartStory(story, $event)">
+              Review
+            </button>
+          }
+        </div>
+        </div>
+      }
     </div>
-  </div>
+  }
 
   <!-- Load More Button -->
-  <div *ngIf="stories.length > 0 && !loading" class="load-more-container">
-    <button class="load-more-btn" (click)="loadMore()">
-      Load More Stories
-    </button>
-  </div>
+  @if (stories.length > 0 && !loading) {
+    <div class="load-more-container">
+      <button class="load-more-btn" (click)="loadMore()">
+        Load More Stories
+      </button>
+    </div>
+  }
 
   <!-- Loading More Indicator -->
-  <div *ngIf="loading && stories.length > 0" class="loading-more">
-    <div class="loading-spinner small"></div>
-    <span>Loading more stories...</span>
-  </div>
+  @if (loading && stories.length > 0) {
+    <div class="loading-more">
+      <div class="loading-spinner small"></div>
+      <span>Loading more stories...</span>
+    </div>
+  }
 
   <!-- Empty State -->
-  <div *ngIf="!loading && stories.length === 0 && !error" class="empty-state">
-    <div class="empty-icon">📚</div>
-    <h3>No stories found</h3>
-    <p>Try adjusting your filters or search terms</p>
-    <button class="clear-filters-btn" (click)="clearFilters()">
-      Clear All Filters
-    </button>
-  </div>
+  @if (!loading && stories.length === 0 && !error) {
+    <div class="empty-state">
+      <div class="empty-icon">📚</div>
+      <h3>No stories found</h3>
+      <p>Try adjusting your filters or search terms</p>
+      <button class="clear-filters-btn" (click)="clearFilters()">
+        Clear All Filters
+      </button>
+    </div>
+  }
 </div>
